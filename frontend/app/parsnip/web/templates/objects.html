@@ -26,6 +26,7 @@
                 <th scope="col">Object Dependencies</th>
                 <th scope="col">View Fields</th>
                 <th scope="col">Delete?</th>
+                <th scope="col">Edit?</th>
             </tr>
         </thead>
         <tbody>
@@ -72,6 +73,11 @@
                 </td>
                 <td class="centeredText"><a href="{{ url_for('main.viewFields', index=loop.index0) }}">View Fields</a></td>
                 <td class="centeredText confirmDelete"><a href="{{ url_for('main.removeObject', index=loop.index0) }}">X</a></td>
+                <td>
+                    <div class="buttonRow">
+                        <a href="#" class="ui-button ui-widget ui-corner-all editObjectButton" data-index="{{ loop.index0 }}">Edit Object</a>
+                    </div>
+                </td>
             </tr>
             {% endfor %}
         {% endif %}
@@ -173,9 +179,104 @@
         {% endfor -%}
         </div>
         <!-- End Additional Dependency List -->
-        <a href="#" class="ui-button ui-widget ui-corner-all" onclick="addDependency();">Add Dependency</a>
+        <a href="#" class="ui-button ui-widget ui-corner-all" onclick="addDependency('dependencies');">Add Dependency</a>
         <hr />
         <input type="submit" value="Add Object" class="ui-button ui-widget ui-corner-all" />
+    </form>
+</div>
+
+<div id="editObjectDialog" class="dialog" title="Edit Object">
+    <form id="editObjectForm" method="POST" action="">
+        {{ addObjectForm.csrf_token }}
+        
+        <!-- Name -->
+        <p class="fieldSet">
+            {{ addObjectForm.objectName.label }}
+            {{ addObjectForm.objectName }}
+        </p>
+        {% if addObjectForm.objectName.error %}
+        <div class="ui-widget">
+	        <div class="ui-state-error ui-corner-all">
+		        <p class="errorLabel"><span class="ui-icon ui-icon-alert"></span>Error:</p>
+		        <ul class="errors">
+                {% for error in addObjectForm.objectName.error %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+                </ul>
+	        </div>
+        </div>
+        {% endif %}
+        <!-- End Name -->
+        
+        <!-- Reference -->
+        <p class="fieldSet">
+            {{ addObjectForm.objectReference.label }}
+            {{ addObjectForm.objectReference }}
+        </p>
+        <!-- End Reference -->
+        
+        <!-- Note -->
+        <p class="fieldSet">
+            {{ addObjectForm.objectNote.label }}
+            {{ addObjectForm.objectNote }}
+        </p>
+        <!-- End Note -->
+        
+        <!-- Scope -->
+        <p class="fieldSet">
+            {{ addObjectForm.objectScope.label }}
+            {{ addObjectForm.objectScope }}
+        </p>
+        {% if addObjectForm.objectScope.error %}
+        <div class="ui-widget">
+	        <div class="ui-state-error ui-corner-all">
+		        <p class="errorLabel"><span class="ui-icon ui-icon-alert"></span>Error:</p>
+		        <ul class="errors">
+                {% for error in addObjectForm.objectScope.error %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+                </ul>
+	        </div>
+        </div>
+        {% endif %}
+        <!-- End Scope -->
+        
+        <!-- Log Independently -->
+        <p class="fieldSet">
+            {{ addObjectForm.logIndependently.label }}
+            {{ addObjectForm.logIndependently }}
+        </p>
+        <!-- End Log Independently -->
+        
+        <hr />
+        <p id="dependencyLimits">Between {{ addObjectForm.objectDependencies.min_entries }} and {{ addObjectForm.objectDependencies.max_entries }} dependencies may be provided.</p>
+        {% set dependenciesText = addObjectForm.objectDependencies|length %}
+        {% if dependenciesText != 1 %}
+            {% set dependenciesText = dependenciesText|string + " dependencies are" %}
+        {% else %}
+            {% set dependenciesText = dependenciesText|string + " dependency is" %}
+        {% endif %}
+        <p id="currentDependencyCount"><span id="DepdendencyCounterSpace">{{dependenciesText}}</span> currently defined.</p>
+        <!-- Start Additional Dependency List -->
+        <div id="dependenciesEdit">
+        {%- for dependency in addObjectForm.objectDependencies %}
+            <p class="fieldSet" id="dependencyFieldSet-{{loop.index0}}">
+                <a href="#" id="removeDependency-{{loop.index0}}" onclick="removeDependency({{ loop.index0 }});">X</a>
+                {{ dependency.dependencyName.label }}
+                {{ dependency.dependencyName }}<br />
+                {{ dependency.dependencyType.label }}
+                {{ dependency.dependencyType(onchange="updateDependencyType(" + loop.index0|string  + ")") }}<br />
+                {{ dependency.fieldSize.label }}
+                {{ dependency.fieldSize }}<br />
+                {{ dependency.referenceType.label }}
+                {{ dependency.referenceType }}
+            </p>
+        {% endfor -%}
+        </div>
+        <!-- End Additional Dependency List -->
+        <a href="#" class="ui-button ui-widget ui-corner-all" onclick="addDependency('dependenciesEdit');">Add Dependency</a>
+        <hr />
+        <input type="submit" value="Save Object" class="ui-button ui-widget ui-corner-all" />
     </form>
 </div>
 {% endblock content %}
@@ -225,13 +326,13 @@ function updateDependenciesCount() {
     $("#DepdendencyCounterSpace").html(text);
 }
 
-function addDependency() {
-    currentHTML = $("#dependencies").html();
+function addDependency(elementId) {
+    currentHTML = $("#" + elementId).html();
     
-    currentNameValues = $("#dependencies [id$='dependencyName']")
-    currentTypeValues = $("#dependencies [id$='dependencyType']")
-    currentSizeValues = $("#dependencies [id$='fieldSize']")
-    currentReferenceTypeValues = $("#dependencies [id$='referenceType']")
+    currentNameValues = $("#" + elementId + " [id$='dependencyName']")
+    currentTypeValues = $("#" + elementId + " [id$='dependencyType']")
+    currentSizeValues = $("#" + elementId + " [id$='fieldSize']")
+    currentReferenceTypeValues = $("#" + elementId + " [id$='referenceType']")
     
     dependencyNameID = "objectDependencies-" + nextDependenciesIndex + "-dependencyName";
     dependencyTypeID = "objectDependencies-" + nextDependenciesIndex + "-dependencyType";
@@ -257,7 +358,7 @@ function addDependency() {
     {% endfor -%}
     currentHTML += "</select><br />";
     currentHTML += "</p>\n"
-    $("#dependencies").html(currentHTML);
+    $("#" + elementId).html(currentHTML);
     updateDependencyType(nextDependenciesIndex);
     
     ++currentDependencies;
@@ -267,25 +368,25 @@ function addDependency() {
     currentNameValues.each(function(){
         currentID = $(this).attr("id");
         currentValue = $(this).val();
-        $("#dependencies #" + currentID).val(currentValue);
+        $("#" + elementId + " #" + currentID).val(currentValue);
     });
     
     currentTypeValues.each(function(){
         currentID = $(this).attr("id");
         currentValue = $(this).val();
-        $("#dependencies #" + currentID).val(currentValue);
+        $("#" + elementId + " #" + currentID).val(currentValue);
     });
     
     currentSizeValues.each(function(){
         currentID = $(this).attr("id");
         currentValue = $(this).val();
-        $("#dependencies #" + currentID).val(currentValue);
+        $("#" + elementId + " #" + currentID).val(currentValue);
     });
     
     currentReferenceTypeValues.each(function(){
         currentID = $(this).attr("id");
         currentValue = $(this).val();
-        $("#dependencies #" + currentID).val(currentValue);
+        $("#" + elementId + " #" + currentID).val(currentValue);
     });
 }
 
@@ -300,26 +401,84 @@ var currentDependencies = {{ addObjectForm.objectDependencies | length }};
 var nextDependenciesIndex = {{ addObjectForm.objectDependencies | length }};
 
 $(function() {
+    // Initialize dialogs
 	
 	const buttonsAndDialogs = ["addObject"];
 
 	for(let i = 0; i < buttonsAndDialogs.length; ++i)
 	{
-	    let value = buttonsAndDialogs[i];
-        $('#' + value + 'Dialog').dialog(dialogInitializationValue);
-        $('.' + value + 'Button').click(function(event) {
-            loadForm(event, value + 'Dialog');
-        });
+        const buttonsAndDialogs = ["addObject", "editObject"];
+        for (let i = 0; i < buttonsAndDialogs.length; ++i) {
+            let value = buttonsAndDialogs[i];
+            $('#' + value + 'Dialog').dialog(dialogInitializationValue);
+        }
 	}
-	
-	$(".confirmDelete").click(function(){
+
+    // Handle Edit Object button clicks
+    $(".editObjectButton").click(function (event) {
+        event.preventDefault();
+
+        const index = $(this).data('index');
+        console.log("Opening edit dialog for index: ", index);
+        // Set the object index dynamically
+        const actionUrl = `/editObject/${index}`;
+        $("#editObjectDialog form").attr("action", actionUrl);
+
+        // Fetch current object data from the server (if needed)
+        $.get(`/editObject/${index}`, function (response) {
+            console.log("Response:", response);
+            // Update form fields dynamically
+            $("#editObjectDialog form input[name='objectName']").val(response.objectName);
+            $("#editObjectDialog form input[name='objectReference']").val(response.objectReference);
+            $("#editObjectDialog form input[name='objectNote']").val(response.objectNote);
+            $("#editObjectDialog form input[name='objectScope']").val(response.objectScope);
+            $("#editObjectDialog form input[name='logIndependently']").prop('checked', response.objectLogIndependently);
+
+            // Clear existing dependency fields if any
+            $("#dependenciesEdit").empty();
+            // Populate dependency fields
+            if (response.objectDependencies && response.objectDependencies.length > 0) {
+                response.objectDependencies.forEach((dependency, index) => {
+                    console.log("Dependency:", dependency);
+
+                    const dependencyHTML = `
+                    <p class="fieldSet" id="dependencyFieldSet-${index}">
+                        <a href="#" id="removeDependency-${index}" onclick="removeDependency(${index});">X</a>
+                        <label>Dependency Name</label>
+                        <input type="text" name="objectDependencies[${index}][dependencyName]" value="${dependency.dependencyName || ''}"><br />
+                        <label>Dependency Type</label>
+                        <input type="text" name="objectDependencies[${index}][dependencyType]" value="${dependency.dependencyType || ''}"><br />
+                        <label>Field Size</label>
+                        <input type="text" name="objectDependencies[${index}][fieldSize]" value="${dependency.fieldSize || ''}"><br />
+                        <label>Reference Type</label>
+                        <input type="text" name="objectDependencies[${index}][referenceType]" value="${dependency.referenceType || ''}">
+                    </p>
+                    `;
+                    $("#dependenciesEdit").append(dependencyHTML);
+                });
+            }
+
+            // Open the dialog
+            $("#editObjectDialog").dialog("open");
+        });
+    });
+
+    // Confirm delete
+    $(".confirmDelete").click(function() {
         return confirm("Are you sure you want to delete?");
-    })
-    
+    });
+
+    $('.addObjectButton').click(function(event) {
+        event.preventDefault(); // Prevent default link behavior
+        $('#addObjectDialog').dialog('open'); // Open the dialog
+    });
+
+    // Update dependency type initialization
     for(let i = 0; i < {{ addObjectForm.objectDependencies|length }}; ++i)
     {
         updateDependencyType(i);
     }
 });
+
 </script>
 {% endblock additionalJavascript %}
