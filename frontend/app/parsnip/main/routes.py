@@ -11,7 +11,9 @@ from parsnip.main.utils import (addEnumToStructure, removeEnumFromStructure,
                                 reviewStructure,
                                 updateConfig,
                                 addUserTypeToSession, removeUserTypeFromSession,
-                                addObjectToStructure, removeObjectFromStructure,
+                                addObjectToStructure, editObjectStructure,
+                                getObjectDataAsJson, getObjectDataFromForm,
+                                removeObjectFromStructure,
                                 addFieldToObject, removeFieldFromObject,
                                 addPortToSession, removePortFromSession,
                                 addSwitchToStructure, removeSwitchFromStructure,
@@ -33,7 +35,7 @@ from parsnip.main.convert import (getParsnipFile)
 from flask import render_template
 from flask import url_for # Used in the render_template function
 #from flask import flash
-#from flask import request # Used for "get args"
+from flask import request # Used for "get args"
 from flask import redirect
 from flask import Blueprint
 from flask import session
@@ -161,11 +163,15 @@ def objects(title="Objects"):
         dependency.dependencyType.choices = dependencyTypes
         dependency.referenceType.choices = enumReferences
     
+    objs_data = session["Structures"].get("Objs", [])
+    index = len(objs_data) - 1 if objs_data else 0
+
     return render_template('objects.html', title=title, \
                            uploadSnapshotForm=uploadSnapshotForm, \
                            addObjectForm=addObjectForm, \
                            dependencyTypes=dependencyTypes, \
-                           enumReferences=enumReferences)
+                           enumReferences=enumReferences, \
+                           index=index)
                            
 @main.route("/addObject", methods=['POST'])
 def addObject():
@@ -177,6 +183,23 @@ def addObject():
         print(addObjectForm.errors)
     
     return redirect(url_for('main.objects'))
+
+@main.route("/editObject/<int:index>", methods=['POST', 'GET'])
+def editObject(index):
+    if request.method == 'POST':
+        # Get the data from the form
+        objectDataDict = request.form.to_dict()
+        objectData = getObjectDataFromForm(objectDataDict)
+
+        editObjectStructure(objectData, index)
+
+        return redirect(url_for('main.objects'))
+
+    elif request.method == 'GET' and index is not None:
+        # Populate the form with current object values
+        obj = session["Structures"]["Objects"][index]
+
+        return getObjectDataAsJson(obj)
 
 @main.route("/removeObject/<int:index>", methods=['GET'])
 def removeObject(index):

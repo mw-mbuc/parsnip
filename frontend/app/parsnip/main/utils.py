@@ -5,6 +5,7 @@ from parsnip.main.checkForMissingDependencies import (checkForMissingDependencie
 from parsnip.main.checkForDuplicates import (checkForDuplicates)
 
 from flask import session
+from flask import jsonify
 
 import json
 
@@ -409,7 +410,102 @@ def addObjectToStructure(objectForm):
     entry["fields"] = []
     session["Structures"]["Objects"].append(entry)
     session.modified = True
+
+def editObjectStructure(objectData, index):
+    obj = session["Structures"]["Objects"][index]
+    obj["name"] = objectData.get("objectName")
+    obj["reference"] = objectData.get("objectReference")
+    obj["notes"] = objectData.get("objectNote")
+    obj["scope"] = objectData.get("objectScope")
+    obj["logIndependently"] = objectData.get("logIndependently")
+    dependsOn = []
+    if objectData.get("objectDependencies") is not None and 0 < len(objectData.get("objectDependencies")):
+        for dependency in objectData.get("objectDependencies"):
+            if len(dependency) == 0:
+                continue
+            tempObj = {}
+            tempObj["name"] = dependency.get("dependencyName")
+            tempObj["type"] = dependency.get("dependencyType")
+            if "object" == dependency.get("dependencyType") or \
+            "bits" == dependency.get("dependencyType") or \
+            "switch" == dependency.get("dependencyType") or \
+            "enum" == dependency.get("dependencyType"):
+                tempObj["referenceType"] = dependency.get("referenceTyp")
+            else:
+                tempObj["size"] = dependency.get("fieldSize")
             
+            dependsOn.append(tempObj)
+    obj["dependsOn"] = dependsOn
+    session.modified = True
+
+def getObjectDataAsJson(obj):
+    return jsonify({
+        "objectName": obj.get("name", ""),
+        "objectReference": obj.get("reference", ""),
+        "objectNote": obj.get("notes", ""),
+        "objectScope": obj.get("scope", ""),
+        "objectLogIndependently": obj.get("logIndependently", ""),
+        "objectDependencies": [
+            {
+                "dependencyName": dep.get("name"),
+                "dependencyType": dep.get("type"),
+                "fieldSize": dep.get("size"),
+                "referenceType": dep.get("referenceType", ""),
+            } for dep in obj.get("dependsOn", [])
+        ]
+    })
+
+def getObjectDataFromForm(objectDataDict):
+    objectData = {
+        'csrf_token': objectDataDict.get('csrf_token'),
+        'objectName': objectDataDict.get('objectName'),
+        'objectReference': objectDataDict.get('objectReference', ''),
+        'objectNote': objectDataDict.get('objectNote', ''),
+        'objectScope': objectDataDict.get('objectScope', ''),
+        'objectDependencies': []
+    }
+    log_independently_value = objectDataDict.get("logIndependently")
+    if log_independently_value == "y":
+        objectData["logIndependently"] = True
+    else:
+        objectData["logIndependently"] = False
+
+    # Extract objectDependencies keys and group them
+    for key, value in objectDataDict.items():
+        # Existing dependeny object, objectDependencies[index]
+        if key.startswith('objectDependencies['):
+            # Extract index and attribute from key, e.g. 'objectDependencies[0][dependencyName]'
+            parts = key.split('][')
+            i = int(parts[0].split('[')[-1])  # Extract the index (e.g. 0)
+            field = parts[1].replace(']', '')  # Extract the field name (e.g. 'dependencyName')
+
+            # Ensure there's a dictionary for this index in the objectDependencies list
+            if len(objectData['objectDependencies']) <= i:
+                # Fill missing indexes with empty dictionaries
+                while len(objectData['objectDependencies']) <= i:
+                    objectData['objectDependencies'].append({})
+
+            # Set the value in the corresponding dictionary
+            objectData['objectDependencies'][i][field] = value
+
+        # New dependeny object, objectDependencies-[index]-
+        elif key.startswith('objectDependencies-'):
+            # Extract index and field name from key like 'objectDependencies-0-dependencyName'
+            parts = key.split('-')
+            field = parts[2]  # Extract the field name (e.g. 'dependencyName')
+            if field == "dependencyName":
+                i = int(parts[1])  # Extract the index (e.g. 0)
+                while i < len(objectData['objectDependencies']) and objectData['objectDependencies'][i]:
+                    i += 1
+            # Ensure there's a dictionary for this index in the objectDependencies list
+            while len(objectData['objectDependencies']) <= i:
+                objectData['objectDependencies'].append({})
+
+            # Set the value in the corresponding dictionary
+            objectData['objectDependencies'][i][field] = value
+
+    return objectData
+
 def removeObjectFromStructure(index):
     if "Structures" in session and "Objects" in session["Structures"]:
         if index < len(session["Structures"]["Objects"]):
