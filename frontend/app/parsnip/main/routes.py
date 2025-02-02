@@ -163,8 +163,11 @@ def objects(title="Objects"):
         dependency.dependencyType.choices = dependencyTypes
         dependency.referenceType.choices = enumReferences
     
-    objs_data = session["Structures"].get("Objs", [])
-    index = len(objs_data) - 1 if objs_data else 0
+    if "Structures" in session and isinstance(session["Structures"], dict):
+        objs_data = session["Structures"].get("Objs", [])
+        index = len(objs_data) - 1 if objs_data else 0
+    else:
+        index = 0
 
     return render_template('objects.html', title=title, \
                            uploadSnapshotForm=uploadSnapshotForm, \
