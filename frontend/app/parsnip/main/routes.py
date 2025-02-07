@@ -1,7 +1,7 @@
 # Copyright 2024, Battelle Energy Alliance, LLC, ALL RIGHTS RESERVED
 
 from parsnip.main.forms import (AddEnumForm, AddBitfieldForm, AddSwitchForm,
-                                AddObjectForm, AddFieldForm,
+                                AddObjectForm, AddFieldForm, EditFieldForm,
                                 UploadSnapshotForm,
                                 EditConfigForm, AddUserTypeForm, AddPortForm)
 from parsnip.main.utils import (addEnumToStructure, removeEnumFromStructure,
@@ -15,6 +15,8 @@ from parsnip.main.utils import (addEnumToStructure, removeEnumFromStructure,
                                 getObjectDataAsJson, getObjectDataFromForm,
                                 removeObjectFromStructure,
                                 addFieldToObject, removeFieldFromObject,
+                                getFieldDataAsJson, getFieldDataFromForm,
+                                editFieldStructure,
                                 addPortToSession, removePortFromSession,
                                 addSwitchToStructure, removeSwitchFromStructure,
                                 getReferenceSelectorTypes,
@@ -229,10 +231,12 @@ def viewFields(index, title="Fields"):
     addFieldForm = AddFieldForm()
     addFieldForm.fieldType.choices = getAllFieldTypeSelectorTypes()
     addFieldForm.elementType.choices = getAllFieldTypeSelectorTypes(includeListType=False, includeChoiceType=False)
-    
+    editFieldForm = EditFieldForm()
+
     return render_template('fields.html', title=title, \
                            uploadSnapshotForm=uploadSnapshotForm, \
-                           objectIndex=index, addFieldForm=addFieldForm)
+                           objectIndex=index, addFieldForm=addFieldForm,
+                           editFieldForm=editFieldForm)
 
 @main.route("/addField/<int:objectIndex>/<int:displayIndex>", methods=['POST'])
 def addField(objectIndex, displayIndex):
@@ -246,7 +250,26 @@ def addField(objectIndex, displayIndex):
         print(addFieldForm.errors)
     
     return redirect(url_for('main.viewFields', index=displayIndex))
-                           
+
+@main.route("/editField/<int:objectIndex>/<int:index>/<int:displayIndex>", methods=['POST', 'GET'])
+def editField(objectIndex, index, displayIndex):
+
+    print(f"editFild function {objectIndex}, {index}, {displayIndex}")
+    if request.method == 'POST':
+        # Get the data from the form
+        fieldDataDict = request.form.to_dict()
+        fieldData = getFieldDataFromForm(fieldDataDict)
+        editFieldStructure(fieldData, objectIndex, index)
+
+        return redirect(url_for('main.viewFields', index=displayIndex))
+
+    elif request.method == 'GET' and index is not None:
+        # Populate the form with current object values
+        field = session["Structures"]["Objects"][int(objectIndex)]["fields"][int(index)]
+        print(f"Field elements: {field}")
+
+        return getFieldDataAsJson(field) 
+
 @main.route("/removeField/<int:objectIndex>/<int:index>/<int:displayIndex>", methods=['GET'])
 def removeField(objectIndex, index, displayIndex):
     removeFieldFromObject(objectIndex, index)
