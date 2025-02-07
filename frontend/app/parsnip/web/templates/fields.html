@@ -144,6 +144,110 @@
 </div>
 {% endmacro %}
 
+{% macro addEditFieldForm(inputs, fields, realIndex, id, calledIndex) %}
+<div id="editField{{ id }}Dialog" class="dialog" title="Edit Field">
+    <form method="POST" action="">
+        {{ editFieldForm.csrf_token }}
+        
+        <!-- Name -->
+        <p class="fieldSet">
+            {{ editFieldForm.fieldName.label }}
+            {{ editFieldForm.fieldName }}
+        </p>
+        {% if editFieldForm.fieldName.error %}
+        <div class="ui-widget">
+	        <div class="ui-state-error ui-corner-all">
+		        <p class="errorLabel"><span class="ui-icon ui-icon-alert"></span>Error:</p>
+		        <ul class="errors">
+                {% for error in editFieldForm.fieldName.error %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+                </ul>
+	        </div>
+        </div>
+        {% endif %}
+        <!-- End Name -->
+        
+        <!-- Description -->
+        <p class="fieldSet">
+            {{ editFieldForm.fieldDescription.label }}
+            {{ editFieldForm.fieldDescription }}
+        </p>
+        <!-- End Description -->
+        
+        <!-- Note -->
+        <p class="fieldSet">
+            {{ editFieldForm.fieldNote.label }}
+            {{ editFieldForm.fieldNote }}
+        </p>
+        <!-- End Note -->
+        
+        <p><b>Conditional settings</b></p>
+        <!-- Is Conditional? -->
+        <p class="fieldSet">
+            {{ editFieldForm.isConditional.label }}
+            {{ editFieldForm.isConditional(onchange="updateConditional(" + id|string + ")") }}
+        </p>
+        <!-- End Is Conditional -->
+        
+        <!-- Conditional Indicator -->
+        <p id="conditionalSet" class="fieldSet">
+            {{ editFieldForm.conditionalIndicator.label }}
+            {{ editFieldForm.conditionalIndicator }}<br>
+            {{ editFieldForm.conditionalOperator.label }}
+            {{ editFieldForm.conditionalOperator }}<br>
+            {{ editFieldForm.conditionalTextValue.label }}
+            {{ editFieldForm.conditionalTextValue }}<br>
+        </p>
+        <!-- End Conditional Indicator -->
+        
+        <p><b>Field type settings</b><br>
+            For basic types (uint, int) edit Field Size<br>
+            For type Enumeration (enum), Bitfield (bits), Object (object), Choice (switch) edit Reference Type<br>
+            For typ List (list) if List Element Type is basic type (uint, int) edit Field Size,<br>
+            if List Element Type is Enumeration (enum), Bitfield (bits), Object (object), Choice (switch) edit Reference Type<br>
+            for List Condition Type: Count Field (COUNT) edit Indicator Field or use Remaining Data (ENDOFDATA) </p>
+        
+        <!-- Field Type and Field Size -->
+        <p class="fieldSet">
+            {{ editFieldForm.fieldType.label }}
+            {{ editFieldForm.fieldType }}<br>
+            {{ editFieldForm.fieldSize.label }}
+            {{ editFieldForm.fieldSize }}
+        </p>
+        <!-- End Field Type and Field Size -->       
+        
+        <!-- Element Type -->
+        <p class="fieldSet">
+            {{ editFieldForm.elementType.label }}
+            {{ editFieldForm.elementType }}
+        </p>
+        <!-- End Element Type -->
+        
+        <!-- Until Condition Type and Indicator -->
+        <p class="fieldSet">
+            {{ editFieldForm.untilConditionType.label }}
+            {{ editFieldForm.untilConditionType }}<br>
+            {{ editFieldForm.untilConditionIndicator.label }}
+            {{ editFieldForm.untilConditionIndicator }}
+        </p>
+        <!-- End Until Condition Type-->
+        
+        <!-- Reference Type -->
+        <p class="fieldSet">
+            {{ editFieldForm.referenceType.label }}
+            {{ editFieldForm.referenceType }}
+        </p>
+        <!-- End Reference Type -->
+        <hr />
+        <div id="inputs">
+        </div>
+        <hr />
+        <input type="submit" value="Save Field" class="ui-button ui-widget ui-corner-all" />
+    </form>
+</div>
+{% endmacro %}
+
 {% macro listFields(fields, realIndex, id, calledIndex) -%}
     <div class="buttonRow">
         <a href="#" class="ui-button ui-widget ui-corner-all addField{{ id }}Button">Add Field</a>
@@ -159,6 +263,7 @@
                 <th scope="col">Reference Type</th>
                 <th scope="col">Additional Details?</th>
                 <th scope="col">Delete?</th>
+                <th scope="col">Edit?</th>
             </tr>
         </thead>
         <tbody>
@@ -205,6 +310,15 @@
                 {%- endif -%}
                 </td>
                 <td class="centeredText confirmDelete"><a href="{{ url_for('main.removeField', objectIndex=realIndex, index=loop.index0, displayIndex=calledIndex) }}">X</a></td>
+                <td>
+                    <div class="buttonRow">
+                        <a href="#"
+                           class="ui-button ui-widget ui-corner-all editFieldButton"
+                           data-object-index="{{ realIndex }}" 
+                           data-index="{{ loop.index0 }}" 
+                           data-display-index="{{ calledIndex }}">Edit Field</a>
+                    </div>
+                </td>
             </tr>
             {%- endfor -%}
         </tbody>
@@ -265,12 +379,14 @@
                         {%- if -1 != tempObjectIndex -%}
                             {%- set tempSubObject = session["Structures"]["Objects"][tempObjectIndex] -%}
                             {{- addAddFieldForm(tempSubObject["dependsOn"], tempSubObject["fields"], tempObjectIndex, loop.index0, objectIndex) -}}
+                            {{- addEditFieldForm(tempSubObject["dependsOn"], tempSubObject["fields"], tempObjectIndex, loop.index0, objectIndex) -}}
                         {%- endif -%}
                     {%- endif -%}
                 {%- endfor -%}
             {%- endif -%}
         {%- else -%}
             {{- addAddFieldForm(tempInputs, tempFields, objectIndex, "", objectIndex) -}}
+            {{- addEditFieldForm(tempInputs, tempFields, objectIndex, "", objectIndex) -}}
         {%- endif -%}
     {% else %}
     <h3>Unknown Object Index</h3>
@@ -775,11 +891,54 @@ $(function() {
         $('.' + value + 'Button').click(function(event) {
             loadForm(event, value + 'Dialog');
         });
-	}
-	
+    }
+    $('#editFieldDialog').dialog(dialogInitializationValue);
+    $(".editFieldButton").click(function (event) {
+        const objectIndex = $(this).data("object-index");
+        const index = $(this).data("index");
+        const displayIndex = $(this).data("display-index");
+        console.log("objectIndex:", objectIndex);
+        console.log("index:", index);
+        console.log("displayIndex:", displayIndex);
+        event.preventDefault();
+        // Logic to load existing form data into the dialog
+        loadEditForm(objectIndex, index, displayIndex);
+    });
+
 	$(".confirmDelete").click(function(){
         return confirm("Are you sure you want to delete?");
     })
+    // Function to load data into the form for editing
+    function loadEditForm(objectIndex, index, displayIndex) {
+        dialogId = 'editFieldDialog'
+
+        $.get(`/editField/${objectIndex}/${index}/${displayIndex}`, function (response) {
+            console.log("Response:", response);
+            // Update form fields dynamically
+            $('#' + dialogId + ' input[name="fieldName"]').val(response.fieldName);
+            $('#' + dialogId + ' input[name="fieldDescription"]').val(response.fieldDescription);
+            $('#' + dialogId + ' input[name="fieldNote"]').val(response.fieldNote);
+            $('#' + dialogId + ' input[name="isConditional"]').prop('checked', response.fieldIsConditional);
+            $('#' + dialogId + ' input[name="conditionalIndicator"]').val(response.fieldConditionalIndicator);
+            $('#' + dialogId + ' input[name="conditionalOperator"]').val(response.fieldConditionalOperator);
+            $('#' + dialogId + ' input[name="conditionalTextValue"]').val(response.fieldConditionalValue);
+            $('#' + dialogId + ' input[name="fieldType"]').val(response.fieldType);
+            $('#' + dialogId + ' input[name="fieldSize"]').val(response.fieldSize);
+            $('#' + dialogId + ' input[name="elementType"]').val(response.fieldElementType);
+            $('#' + dialogId + ' label[for="elementType"]').show();
+            $('#' + dialogId + ' input[name="untilConditionType"]').val(response.fieldUntilConditionType);
+            $('#' + dialogId + ' label[for="untilConditionType"]').show();
+            $('#' + dialogId + ' input[name="untilConditionIndicator"]').val(response.fieldUntilIndicator);
+            $('#' + dialogId + ' label[for="untilConditionIndicator"]').show()
+            $('#' + dialogId + ' input[name="referenceType"]').val(response.fieldReferenceType);
+            $('#' + dialogId + ' label[for="referenceType"]').show()
+
+            // Set the field index dynamically for the POST request
+            $('#' + dialogId + ' form').attr('action', `/editField/${objectIndex}/${index}/${displayIndex}`);
+        });
+        $('#editFieldDialog').dialog("open");
+    }
 });
+
 </script>
 {% endblock additionalJavascript %}

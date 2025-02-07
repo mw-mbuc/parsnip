@@ -574,7 +574,80 @@ def addFieldToObject(objectIndex, fieldForm):
             print(entry)
             session["Structures"]["Objects"][objectIndex]["fields"].append(entry)
             session.modified = True
+
+def getFieldDataAsJson(field):
+    fieldIsConditional = field.get("conditional") is not None
+    conditional = field.get("conditional", {})
+    until = field.get("until", {})
+    return jsonify({
+        "fieldName": field.get("name", ""),
+        "fieldDescription": field.get("description", ""),
+        "fieldNote": field.get("notes", ""),
+        "fieldIsConditional": fieldIsConditional,
+        "fieldConditionalIndicator": conditional.get("indicator", ""),
+        "fieldConditionalOperator": conditional.get("operator", ""), 
+        "fieldConditionalValue": conditional.get("value", ""), 
+        "fieldType": field.get("type", ""), 
+        "fieldSize": field.get("size", ""), 
+        "fieldElementType": field.get("elementType", ""),
+        "fieldUntilConditionType": until.get("conditionType", ""),
+        "fieldUntilIndicator": until.get("indicator", ""),
+        "fieldReferenceType": field.get("referenceType", "") 
+    })
+
+def getFieldDataFromForm(fieldDataDict):
+    fieldData = {
+        'csrf_token': fieldDataDict.get('csrf_token'),
+        'fieldName': fieldDataDict.get('fieldName'),
+        'fieldDescription': fieldDataDict.get('fieldDescription'),
+        'fieldNote': fieldDataDict.get('fieldNote'),
+        'conditionalIndicator': fieldDataDict.get('conditionalIndicator'),
+        'conditionalOperator': fieldDataDict.get('conditionalOperator'),
+        'conditionalValue': fieldDataDict.get('conditionalTextValue'),
+        'fieldType': fieldDataDict.get('fieldType'),
+        'fieldSize': fieldDataDict.get('fieldSize'),
+        'elementType': fieldDataDict.get('elementType'),
+        'untilConditionType': fieldDataDict.get('untilConditionType'),
+        'untilConditionIndicator': fieldDataDict.get('untilConditionIndicator'),
+        'referenceType': fieldDataDict.get('referenceType'),
+    }
+
+    return fieldData
+
+def editFieldStructure(fieldData, objectIndex, index):
+    def update_field_value(field, key, value):
+        if value:  # If not empty, update or add the key
+            field[key] = value
+        else:  # If empty, remove the key if it exists
+            field.pop(key, None)
     
+    field = session["Structures"]["Objects"][int(objectIndex)]["fields"][int(index)]
+    field["name"] = fieldData.get("fieldName")
+    field["description"] = fieldData.get("fieldDescription")
+    field["notes"] = fieldData.get("fieldNote")
+    if fieldData.get("conditionalIndicator"):
+        field.pop("conditional", None)
+        conditional_entry = {
+            "indicator": fieldData.get("conditionalIndicator"),
+            "operator": fieldData.get("conditionalOperator"),
+            "value": fieldData.get("conditionalValue")
+        }
+        field["conditional"] = conditional_entry
+    update_field_value(field, "type", fieldData.get("fieldType"))
+    update_field_value(field, "size", fieldData.get("fieldSize"))
+    update_field_value(field, "elementType", fieldData.get("elementType"))
+    if fieldData.get("untilConditionType"):
+        field.pop("until", None)
+        until_entry = {
+            "conditionType": fieldData.get("untilConditionType"),
+        }
+        if fieldData.get("untilConditionIndicator"):
+            until_entry["indicator"] = fieldData.get("untilConditionIndicator")
+
+        field["until"] = until_entry
+
+    session.modified = True
+
 def removeFieldFromObject(objectIndex, fieldIndex):
     if "Structures" in session and "Objects" in session["Structures"]:
         if objectIndex < len(session["Structures"]["Objects"]) and \

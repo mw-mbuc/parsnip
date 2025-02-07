@@ -212,3 +212,32 @@ class AddFieldForm(FlaskForm):
     referenceType = SelectField('Reference Type: ', choices=[('', '---')], validate_choice=False)
     # Can be used for "input", "additionalInputs", and "inputs" IL types
     inputs = FieldList(SelectField('Input Value: ', choices=[('', '---')], validate_choice=False), min_entries=0, max_entries=65535)
+
+class EditFieldForm(FlaskForm):
+    ###################################################
+    # General Fields
+    ###################################################
+    fieldName = StringField('Field Name: ', validators=[InputRequired(), Regexp(r'^[a-zA-Z_][a-zA-Z_0-9]*$')])
+    fieldDescription = StringField('Field Reference: ')
+    fieldNote = StringField('Field Note: ')
+    isConditional = BooleanField('Is Field Conditional? ', default=False)
+    conditionalIndicator = StringField('Conditional Indicator (name of variable): ')
+    conditionalOperator = StringField('Conditional Operator (=, !=, >=, <=, <, >): ')
+    conditionalTextValue = StringField('Comparison Value: ')
+    fieldType = StringField('Field Type: ')
+    ###################################################
+    # Non-reference-type-specific fields
+    ###################################################
+    fieldSize = IntegerField('Field Size (Bits): ', validators=[RequiredIfSizedElement2("fieldType", "elementType"), NumberRange(0)], default=8);
+    ###################################################
+    # List-specific fields
+    ###################################################
+    elementType = StringField('Element Type: ')
+    untilConditionType = StringField('List Condition Type: ')
+    untilConditionIndicator = StringField('Indicator Field: ')
+    ###################################################
+    # List- and reference-type-specific fields
+    ###################################################
+    referenceType = StringField('Reference Type: ')
+    # Can be used for "input", "additionalInputs", and "inputs" IL types
+    inputs = StringField('Input Value: ')
