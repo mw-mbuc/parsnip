@@ -411,13 +411,25 @@ def addObjectToStructure(objectForm):
     session["Structures"]["Objects"].append(entry)
     session.modified = True
 
+def convert_to_int_or_boolean(value):
+    if isinstance(value, str):
+        # Convert to integer if possible
+        if value.isdigit():
+            value = int(value)
+        # Convert to boolean if value is 'true' or 'false' (case-insensitive)
+        elif value.lower() == 'true':
+            value = True
+        elif value.lower() == 'false':
+            value = False
+    return value
+
 def editObjectStructure(objectData, index):
     obj = session["Structures"]["Objects"][index]
     obj["name"] = objectData.get("objectName")
     obj["reference"] = objectData.get("objectReference")
     obj["notes"] = objectData.get("objectNote")
     obj["scope"] = objectData.get("objectScope")
-    obj["logIndependently"] = objectData.get("logIndependently")
+    obj["logIndependently"] = convert_to_int_or_boolean(objectData.get("logIndependently"))
     dependsOn = []
     if objectData.get("objectDependencies") is not None and 0 < len(objectData.get("objectDependencies")):
         for dependency in objectData.get("objectDependencies"):
@@ -432,7 +444,7 @@ def editObjectStructure(objectData, index):
             "enum" == dependency.get("dependencyType"):
                 tempObj["referenceType"] = dependency.get("referenceTyp")
             else:
-                tempObj["size"] = dependency.get("fieldSize")
+                tempObj["size"] = convert_to_int_or_boolean(dependency.get("fieldSize"))
             
             dependsOn.append(tempObj)
     obj["dependsOn"] = dependsOn
@@ -617,6 +629,7 @@ def getFieldDataFromForm(fieldDataDict):
 def editFieldStructure(fieldData, objectIndex, index):
     def update_field_value(field, key, value):
         if value:  # If not empty, update or add the key
+            value = convert_to_int_or_boolean(value)
             field[key] = value
         else:  # If empty, remove the key if it exists
             field.pop(key, None)
@@ -630,7 +643,7 @@ def editFieldStructure(fieldData, objectIndex, index):
         conditional_entry = {
             "indicator": fieldData.get("conditionalIndicator"),
             "operator": fieldData.get("conditionalOperator"),
-            "value": fieldData.get("conditionalValue")
+            "value": convert_to_int_or_boolean(fieldData.get("conditionalValue"))
         }
         field["conditional"] = conditional_entry
     update_field_value(field, "type", fieldData.get("fieldType"))
@@ -645,6 +658,7 @@ def editFieldStructure(fieldData, objectIndex, index):
             until_entry["indicator"] = fieldData.get("untilConditionIndicator")
 
         field["until"] = until_entry
+    update_field_value(field, "referenceType", fieldData.get("referenceType"))
 
     session.modified = True
 
